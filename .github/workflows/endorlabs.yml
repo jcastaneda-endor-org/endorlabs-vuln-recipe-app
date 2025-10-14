@@ -20,8 +20,8 @@ jobs:
       id-token: write # Used for keyless authentication to Endor Labs
     runs-on: ubuntu-latest
     steps:
-    - name: Install dependencies
-      run: npm install
+    - name: Build artifact
+      run: npm run build
     - name: Endor Labs scan pull request
       if: github.event_name == 'pull_request'
       uses: endorlabs/github-action@b51bd06466b545f01a6ac788e3e1147695d3936c
