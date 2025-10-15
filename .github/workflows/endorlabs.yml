@@ -1,8 +1,3 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
 name: Endor Labs
 on:
   push:
@@ -11,33 +6,53 @@ on:
     branches: [ "main" ]
   schedule:
     - cron: '29 14 * * 2'
+
 jobs:
   scan:
     permissions:
-      security-events: write # Used to upload sarif artifact to GitHub
-      contents: read # Used to checkout a private repository by actions/checkout.
-      actions: read # Required for private repositories to upload sarif files. GitHub Advanced Security licenses are required.
-      id-token: write # Used for keyless authentication to Endor Labs
+      security-events: write
+      contents: read
+      actions: read
+      id-token: write
     runs-on: ubuntu-latest
     steps:
-    - name: Build artifact
-      run: npm run build
-    - name: Endor Labs scan pull request
-      if: github.event_name == 'pull_request'
-      uses: endorlabs/github-action@b51bd06466b545f01a6ac788e3e1147695d3936c
-      with:
-        namespace: "endor-solutions-jcastaneda" # Modify the namespace to your Endor Labs tenant namespace.
-        sarif_file: findings.sarif
-    - name: Endor Labs scan monitor
-      if: github.event_name == 'push'
-      uses: endorlabs/github-action@b51bd06466b545f01a6ac788e3e1147695d3936c
-      with:
-        namespace: "example" # Modify the namespace to your Endor Labs tenant namespace.
-        ci_run: "false"
-        sarif_file: findings.sarif
-    - name: Upload SARIF to github
-      uses: github/codeql-action/upload-sarif@v3
-      with:
-        sarif_file: findings.sarif
-    - name: Scan
-      run: endorctl scan --dependencies --pr
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Build artifact
+        run: npm ci && npm run build
+
+      # For pull requests
+      - name: Endor Labs scan (pull request)
+        if: github.event_name == 'pull_request'
+        uses: endorlabs/github-action@b51bd06466b545f01a6ac788e3e1147695d3936c
+        with:
+          namespace: "endor-solutions-jcastaneda"
+          sarif_file: findings.sarif
+
+      # For pushes to main
+      - name: Endor Labs scan (monitor)
+        if: github.event_name == 'push'
+        uses: endorlabs/github-action@b51bd06466b545f01a6ac788e3e1147695d3936c
+        with:
+          namespace: "endor-solutions-jcastaneda"
+          ci_run: "false"
+          sarif_file: findings.sarif
+
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: findings.sarif
+          
+      - name: Install Endor Labs CLI
+        run: |
+          curl -sSfL https://get.endorlabs.com/install.sh | sh
+          export PATH="$HOME/.endorctl/bin:$PATH"
+      
+      - name: Run manual Endor Labs scan
+        run: endorctl scan --dependencies --pr
